@@ -1,8 +1,14 @@
 from machine import Pin, PWM
 import time
+import select
+import sys
+
+
+texto = ""
+texto_recibido = ""
 
 time.sleep(0.1)
-print("Sistema Braille iniciado")
+
 
 # Pines del teclado matricial
 Horisontal_pin = [2, 3, 4, 5]
@@ -60,10 +66,7 @@ braille_dict = {
     ' ': [0, 0, 0, 0, 0, 0],
 }
 
-# Texto inicial a mostrar en Braille
-texto = "hola"
-print("Texto a mostrar en Braille:", texto)
-
+texto = ""
 # Convertir texto a lista de patrones Braille
 braille_letras = [braille_dict[letra] for letra in texto]
 indice_actual = 0
@@ -110,24 +113,28 @@ def validar_tecla(tecla, patron_braille):
     return False
 
 # Bucle principal
+beep(1200, 0.3)
+texto = sys.stdin.readline().strip()
+print("Texto recibido: ", texto)
+beep(1000, 0.3)
 while True:
+    print("Sistema Braille iniciado")
+    braille_letras = [braille_dict.get(letra, braille_dict[' ']) for letra in texto.lower()]
+    indice_actual = 0
+    
     print("Presiona A o B para avanzar a la siguiente letra...")
-
     tecla = None
     while not tecla:
         tecla = scan_keypad()
 
     print(f"Tecla presionada: {tecla}")
 
-    if tecla in ['A', 'B']:  # Avanzar con A o B
+    if tecla in ['A', 'B']:
         letra_braille = braille_letras[indice_actual]
         mostrar_braille(letra_braille)
-
-        # Avanzar a la siguiente letra
         indice_actual = (indice_actual + 1) % len(braille_letras)
-
-    elif validar_tecla(tecla, braille_letras[indice_actual]):  # Validar las teclas 1,2,4,5,7,8
+    elif validar_tecla(tecla, braille_letras[indice_actual]):
         print(f"Tecla {tecla} correcta: beep!")
-        beep(1200, 0.3)  # Sonido para tecla correcta
+        beep(1200, 0.3)
     else:
         print(f"Tecla {tecla} incorrecta!")

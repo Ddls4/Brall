@@ -1,185 +1,130 @@
-"""
 from machine import Pin
 import time
 
-time.sleep(0.1)  # Espera que el USB esté listo
-print("Hola")
+time.sleep(0.1)
+print("Sistema Braille iniciado")
 
 # Pines del teclado matricial
 Horisontal_pin = [2, 3, 4, 5]
 Vertical_pin = [6, 7, 8, 9]
 
 # Definir las teclas del teclado
-keys = [['1', '2', "3", "A"],  # 2
-        ['4', '5', "6", "B"],  # 3
-        ['7', '8', "9", "C"],  # 4
-        ['*', '0', "#", "D"]]  # 5
+keys = [['1', '2', "3", "A"],
+        ['4', '5', "6", "B"],
+        ['7', '8', "9", "C"],
+        ['*', '0', "#", "D"]]
 
-print("Pines")
+# Inicializar filas y columnas
+rows = [Pin(pin, Pin.OUT) for pin in Horisontal_pin]
+cols = [Pin(pin, Pin.IN, Pin.PULL_DOWN) for pin in Vertical_pin]
 
-# Declarar los pines del teclado
-cols = []
-rows = []
-for x in range(0, 4):
-    rows.append(Pin(Horisontal_pin[x], Pin.OUT))
-    rows[x].value(0)
-    print("Pines declarados")
-for x in range(0, 4):    
-    cols.append(Pin(Vertical_pin[x], Pin.IN, Pin.PULL_DOWN))
-    print("Pines declarados")
+# LED para mostrar Braille (por ejemplo, en pin 20)
+led = Pin(20, Pin.OUT)
 
-# Definir pines para el LED (o luces)
-led_pins = [Pin(i, Pin.OUT) for i in [20, 21, 22, 19, 24, 25]]  # Luces en 6 pines diferentes
-
-# Definición del alfabeto Braille básico
+# Diccionario Braille con 6 puntos por letra
 braille_dict = {
     'a': [1, 0, 0, 0, 0, 0],
-    'b': [1, 1, 0, 0, 0, 0],
-    'c': [1, 0, 0, 1, 0, 0],
-    'd': [1, 0, 0, 1, 1, 0],
-    'e': [1, 0, 0, 0, 1, 0],
-    'f': [1, 1, 0, 1, 0, 0],
-    'g': [1, 1, 0, 1, 1, 0],
-    'h': [1, 1, 0, 0, 1, 0],
-    'i': [0, 1, 0, 1, 0, 0],
-    'j': [0, 1, 0, 1, 1, 0],
-    'k': [1, 0, 1, 0, 0, 0],
-    'l': [1, 1, 1, 0, 0, 0],
-    'm': [1, 0, 1, 1, 0, 0],
-    'n': [1, 0, 1, 1, 1, 0],
-    'o': [1, 0, 1, 0, 1, 0],
-    'p': [1, 1, 1, 1, 0, 0],
+    'b': [1, 0, 1, 0, 0, 0],
+    'c': [1, 1, 0, 0, 0, 0],
+    'd': [1, 1, 0, 1, 0, 0],
+    'e': [1, 0, 0, 1, 0, 0],
+    'f': [1, 1, 1, 0, 0, 0],
+    'g': [1, 1, 1, 1, 0, 0],
+    'h': [1, 0, 1, 1, 0, 0],
+    'i': [0, 1, 1, 0, 0, 0],
+    'j': [0, 1, 1, 1, 0, 0],
+    'k': [1, 0, 0, 0, 1, 0],
+    'l': [1, 0, 1, 0, 1, 0],
+    'm': [1, 1, 0, 0, 1, 0],
+    'n': [1, 1, 0, 1, 1, 0],
+    'o': [1, 0, 0, 1, 1, 0],
+    'p': [1, 1, 1, 0, 1, 0],
     'q': [1, 1, 1, 1, 1, 0],
-    'r': [1, 1, 1, 0, 1, 0],
-    's': [0, 1, 1, 1, 0, 0],
+    'r': [1, 0, 1, 1, 1, 0],
+    's': [0, 1, 1, 0, 1, 0],
     't': [0, 1, 1, 1, 1, 0],
-    'u': [1, 0, 1, 0, 0, 1],
-    'v': [1, 1, 1, 0, 0, 1],
-    'w': [0, 1, 0, 1, 1, 1],
-    'x': [1, 0, 1, 1, 0, 1],
-    'y': [1, 0, 1, 1, 1, 1],
-    'z': [1, 0, 1, 0, 1, 1],
+    'u': [1, 0, 0, 0, 1, 1],
+    'v': [1, 0, 1, 0, 1, 1],
+    'w': [0, 1, 1, 1, 0, 1],
+    'x': [1, 1, 0, 0, 1, 1],
+    'y': [1, 1, 0, 1, 1, 1],
+    'z': [1, 0, 0, 1, 1, 1],
     ' ': [0, 0, 0, 0, 0, 0],
 }
 
-# Función para encender los LEDs según el patrón de Braille
-def light_up_braille(braille):
-    for i in range(6):
-        led_pins[i].value(braille[i])
+# Texto inicial a mostrar en Braille
+texto = "hola"
+print("Texto a mostrar en Braille:", texto)
 
-# Función para escanear el teclado
+# Convertir texto a lista de patrones Braille
+braille_letras = [braille_dict[letra] for letra in texto]
+indice_actual = 0
+
+# Función para escanear teclado
 def scan_keypad():
-    while True:
-        for row_idx, row in enumerate(rows):
-            row.high()
-            for col_idx, col in enumerate(cols):
-                if col.value() == 1:
-                    time.sleep(0.1)  # Debounce
-                    row.low()
-                    return keys[row_idx][col_idx]
-            row.low()
+    for row_idx, row in enumerate(rows):
+        row.high()
+        for col_idx, col in enumerate(cols):
+            if col.value() == 1:
+                time.sleep(0.2)
+                row.low()
+                return keys[row_idx][col_idx]
+        row.low()
+    return None
 
-# Función para avanzar o retroceder en el array
-def navigate_braille(braille_array, direction):
-    if direction == "next":
-        return braille_array[1:] + [braille_array[0]]
-    elif direction == "prev":
-        return [braille_array[-1]] + braille_array[:-1]
+# Mostrar letra en Braille con LED
+def mostrar_braille(patron):
+    print("Braille:", patron)
+    for punto in patron:
+        if punto == 1:
+            led.value(1)  # Encender el LED
+            time.sleep(0.3)  # Mantener encendido por 0.3 segundos
+            led.value(0)  # Apagar el LED
+        else:
+            time.sleep(0.3)  # Pausa sin encender el LED
+        time.sleep(0.2)  # Pausa entre puntos Braille
+    time.sleep(0.5)  # Pausa entre letras
 
-# Principal
-word = "abcdefghij"  # Palabra inicial
-braille_word = [braille_dict[char] for char in word]  # Convertir palabra a Braille
-current_index = 0  # Indice del Braille actual
+# Función para validar si una tecla es correcta
+def validar_tecla(tecla, patron_braille):
+    # Teclas válidas corresponden a las posiciones 1, 2, 4, 5, 7, 8
+    posiciones_validas = {
+        '1': 0,  # 1 corresponde al primer punto
+        '2': 1,  # 2 corresponde al segundo punto
+        '4': 2,  # 4 corresponde al tercer punto
+        '5': 3,  # 5 corresponde al cuarto punto
+        '7': 4,  # 7 corresponde al quinto punto
+        '8': 5   # 8 corresponde al sexto punto
+    }
 
+    # Si la tecla es válida, verificamos si el patrón Braille tiene un 1 en la posición correspondiente
+    if tecla in posiciones_validas:
+        posicion = posiciones_validas[tecla]
+        if patron_braille[posicion] == 1:
+            return True
+    return False
+
+# Bucle principal
 while True:
-    print("Presiona una tecla...")
+    print("Presiona A o B para avanzar a la siguiente letra...")
 
-    # Escanear la tecla
-    key = scan_keypad()
-    print(f"Tecla presionada: {key}")
-    
-    # Si la tecla presionada es A, avanzar
-    if key == 'A':
-        current_index = (current_index + 1) % len(braille_word)
-    
-    # Si la tecla presionada es B, retroceder
-    elif key == 'B':
-        current_index = (current_index - 1) % len(braille_word)
-    
-    # Mostrar el Braille actual
-    current_braille = braille_word[current_index]
-    light_up_braille(current_braille)  # Activar LEDs según el Braille
+    tecla = None
+    while not tecla:
+        tecla = scan_keypad()
 
-    time.sleep(0.5)  # Esperar antes de escanear nuevamente
-    """
+    print(f"Tecla presionada: {tecla}")
 
-from machine import Pin
-import time
+    if tecla in ['A', 'B']:  # Avanzar con A o B
+        letra_braille = braille_letras[indice_actual]
+        mostrar_braille(letra_braille)
 
-time.sleep(0.1)  # Espera que el USB esté listo
-print("Hola")
+        # Avanzar a la siguiente letra
+        indice_actual = (indice_actual + 1) % len(braille_letras)
 
-# Pines del teclado matricial
-Horisontal_pin = [2, 3, 4, 5]
-Vertical_pin = [6, 7, 8, 9]
-
-# Definir las teclas del teclado
-keys = [['1', '2', "3", "A"],  # 2
-        ['4', '5', "6", "B"],  # 3
-        ['7', '8', "9", "C"],  # 4
-        ['*', '0', "#", "D"]]  # 5
-
-print("Pines")
-
-# Declarar los pines del teclado
-cols = []
-rows = []
-for x in range(0, 4):
-    rows.append(Pin(Horisontal_pin[x], Pin.OUT))
-    rows[x].value(0)
-    print("Pines declarados")
-for x in range(0, 4):    
-    cols.append(Pin(Vertical_pin[x], Pin.IN, Pin.PULL_DOWN))
-    print("Pines declarados")
-
-# Definir un único LED
-led = Pin(20, Pin.OUT)
-
-# Función para escanear el teclado
-def scan_keypad():
-    while True:
-        for row_idx, row in enumerate(rows):
-            row.high()
-            for col_idx, col in enumerate(cols):
-                if col.value() == 1:
-                    time.sleep(0.1)  # Debounce
-                    row.low()
-                    return keys[row_idx][col_idx]
-            row.low()
-
-# Función para encender o apagar el LED en relación con las teclas
-def update_led(key):
-    # Las teclas que corresponden a encender el LED
-    toggle_keys = ['1', '2', '4', '5', '7', '8']
-    
-    # Si la tecla presionada está en las teclas de encendido, encender el LED
-    if key in toggle_keys:
+    elif validar_tecla(tecla, braille_letras[indice_actual]):  # Validar las teclas 1,2,4,5,7,8
+        print(f"Tecla {tecla} correcta: LED encendido!")
         led.value(1)
-        time.sleep(3)
+        time.sleep(0.3)  # Mantener el LED encendido por 0.3 segundos
         led.value(0)
     else:
-        led.value(0)
-
-# Principal
-while True:
-    print("Presiona una tecla...")
-
-    # Escanear la tecla
-    key = scan_keypad()
-    print(f"Tecla presionada: {key}")
-
-    # Actualizar el estado del LED
-    update_led(key)
-
-    time.sleep(0.5)  # Esperar antes de escanear nuevamente
-  
+        print(f"Tecla {tecla} incorrecta!")
